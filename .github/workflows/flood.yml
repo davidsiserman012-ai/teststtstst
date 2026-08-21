@@ -25,4 +25,4 @@ jobs:
         run: python flooder.py --fetch
 
       - name: Run flooder
-        run: python flooder.py --flood --auto --scores 5 --concurrency 5 --server random
+        run: python cool.py --flood --auto --scores 5 --concurrency 5 --server random
