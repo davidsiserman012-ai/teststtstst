@@ -1,0 +1,5 @@
+flask
+aiohttp
+python-socketio
+requests
+beautifulsoup4
