@@ -4,7 +4,7 @@ Speedrun-NPHG,18.501
 Speedrun-RetroRun,12.001
 Speedrun-Tricky,45.001
 Speedrun-SkyLands,20.001
-Parkour-Alter,17.001
+Parkour-Alter,16.899
 Parkour-Edge,40.001
 Parkour-Danger,16.801
 Speedrun-ColorRun,34.001
