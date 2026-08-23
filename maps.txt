@@ -80,7 +80,7 @@ Speedrun-Ether,11.001
 Speedrun-Stairs,32.001
 Parkour-SurfTundra,18.501
 Casual-Rush-Easy,26.001
-Parkour-Safebounce,59.001
+Parkour-Safebounce,56.701
 Parkour-SurfSnow,26.001
 Speedrun-Supreme,27.501
 Casual-Sky-Normal,15.501
