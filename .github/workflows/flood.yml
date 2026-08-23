@@ -2,7 +2,7 @@ name: Flood Leaderboard
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 */3 * * *'
   workflow_dispatch:
 
 jobs:
@@ -21,4 +21,4 @@ jobs:
         run: pip install aiohttp python-socketio requests beautifulsoup4
 
       - name: Run flooder (no map update)
-        run: python cool.py --flood --auto --scores 3 --concurrency 3 --server random
+        run: python cool.py --flood --auto --scores 5 --concurrency 5 --server random
