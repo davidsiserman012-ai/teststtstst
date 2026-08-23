@@ -1,4 +1,4 @@
-Speedrun-RampRun,47.200
+Speedrun-RampRun,46.200
 Speedrun-Mood,16.300
 Speedrun-NPHG,18.500
 Speedrun-RetroRun,12.000
