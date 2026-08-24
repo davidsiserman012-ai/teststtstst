@@ -32,7 +32,7 @@ Parkour-SurfRainbow,17.000
 Parkour-Airdrop,44.500
 Kz-Hex,27.000
 Speedrun-Desolate,43.000
-Parkour-SurfFlight,46.600
+Parkour-SurfFlight,46.000
 Speedrun-Sand,23.000
 Casual-Mechanic-Easy,6.800
 Parkour-SurfParty,34.000
