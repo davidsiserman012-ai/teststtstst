@@ -1,5 +1,5 @@
+Speedrun-Mood,16.310
 Speedrun-RampRun,46.200
-Speedrun-Mood,16.510
 Speedrun-NPHG,18.500
 Speedrun-RetroRun,12.000
 Speedrun-Tricky,45.000
