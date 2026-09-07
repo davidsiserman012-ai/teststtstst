@@ -48,7 +48,7 @@ Parkour-SurfNight,22.000
 Speedrun-Niwa,17.000
 Speedrun-Pillar,14.600
 Casual-Forest-Easy,16.400
-Speedrun-Starlight,5.400
+Speedrun-Starlight,11.110
 Casual-Trap-Easy,17.400
 Kz-Border,26.000
 Parkour-SurfAlp,26.000
